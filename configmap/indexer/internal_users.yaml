@@ -1,0 +1,15 @@
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+INDEXER_USERNAME:
+  hash: "INDEXER_PASSWORD"
+  reserved: true
+  backend_roles:
+  - "admin"
+  description: "Administrative user for Opensearch"
+
+DASHBOARD_USERNAME:
+  hash: "DASHBOARD_PASSWORD"
+  reserved: true
+  description: "Dashboard User"

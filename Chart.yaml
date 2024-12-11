@@ -1,0 +1,12 @@
+apiVersion: v2
+name: wazuh-helm
+description: A helm chart to deploy the Wazuh stack
+
+type: application
+version: 0.0.1
+appVersion: "4.9.1"
+
+dependencies:
+  - name: cert-manager
+    version: "1.16.2"
+    repository: jetstack/cert-manager

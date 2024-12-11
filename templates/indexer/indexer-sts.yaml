@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wazuh-indexer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: wazuh-indexer
+  serviceName: wazuh-indexer
+  template:
+    metadata:
+      labels:
+        app: wazuh-indexer
+      name: wazuh-indexer
+    spec:
+      volumes:
+        - name: node-certs
+          secret:
+            secretName: node-tls
+        - name: admin-certs
+          secret:
+            secretName: admin-tls
+        - name: indexer-conf
+          configMap:
+            name: indexer-conf
+      initContainers:
+        - name: volume-mount-hack
+          image: busybox
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 100m
+              memory: 256Mi
+          command:
+            - sh
+            - '-c'
+            - 'chown -R 1000:1000 /var/lib/wazuh-indexer'
+          volumeMounts:
+            - name: wazuh-indexer
+              mountPath: /var/lib/wazuh-indexer
+        - name: increase-the-vm-max-map-count
+          image: busybox
+          command:
+            - sysctl
+            - -w
+            - vm.max_map_count=262144
+          securityContext:
+            privileged: true
+      containers:
+        - name: wazuh-indexer
+          image: wazuh/wazuh-indexer:{{ .Values.indexer.version }}
+          imagePullPolicy: {{ .Values.indexer.imagePullPolicy }}
+          resources: {{ .Values.indexer.resources }}
+          command: ["/bin/sh", "-x", "-c"]
+          args:
+            - cp /usr/share/wazuh-indexer/opensearch-security/internal_users.yml.template /usr/share/wazuh-indexer/opensearch-security/internal_users.yml &&
+              sed -i "s|INDEXER_USERNAME|$INDEXER_USERNAME|g" /usr/share/wazuh-indexer/opensearch-security/internal_users.yml &&
+              export INDEXER_PASSWORDB="$(JAVA_HOME=/usr/share/wazuh-indexer/jdk bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh -env INDEXER_PASSWORD | grep \$2y)" && sed -i "s|INDEXER_PASSWORD|$INDEXER_PASSWORDB|g" /usr/share/wazuh-indexer/opensearch-security/internal_users.yml && echo "successfully wrote indexer password" &&
+              sed -i "s|DASHBOARD_USERNAME|$DASHBOARD_USERNAME|g" /usr/share/wazuh-indexer/opensearch-security/internal_users.yml &&
+              export DASHBOARD_PASSWORDB="$(JAVA_HOME=/usr/share/wazuh-indexer/jdk bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh -env DASHBOARD_PASSWORD | grep \$2y)" && sed -i "s|DASHBOARD_PASSWORD|$DASHBOARD_PASSWORDB|g" /usr/share/wazuh-indexer/opensearch-security/internal_users.yml && echo "successfully wrote dashboard password" &&
+              /entrypoint.sh
+          env:
+            - name: OPENSEARCH_JAVA_OPTS
+              value: {{ .Values.indexer.javaOpts }}
+            - name: CLUSTER_NAME
+              value: wazuh
+            - name: NETWORK_HOST
+              value: "0.0.0.0"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DISCOVERY_SERVICE
+              value: wazuh-indexer
+            - name: KUBERNETES_NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: DISABLE_INSTALL_DEMO_CONFIG
+              value: 'true'
+            - name: API_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: wazuh-api-cred
+                  key: username
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: wazuh-api-cred
+                  key: password
+            - name: DASHBOARD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-cred
+                  key: username
+            - name: DASHBOARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-cred
+                  key: password
+            - name: INDEXER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-cred
+                  key: username
+            - name: INDEXER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-cred
+                  key: password
+          securityContext:
+            capabilities:
+              add: ["SYS_CHROOT"]
+          volumeMounts:
+            - name: wazuh-indexer
+              mountPath: /var/lib/wazuh-indexer
+            - name: node-certs
+              mountPath: /usr/share/wazuh-indexer/certs/node/tls.crt
+              subPath: tls.crt
+              defaultMode: 256
+              readOnly: true
+            - name: node-certs
+              mountPath: /usr/share/wazuh-indexer/certs/node/tls.key
+              subPath: tls.key
+              defaultMode: 256
+              readOnly: true
+            - name: node-certs
+              mountPath: /usr/share/wazuh-indexer/certs/node/ca.crt
+              subPath: ca.crt
+              defaultMode: 256
+              readOnly: true
+            - name: admin-certs
+              mountPath: /usr/share/wazuh-indexer/certs/admin/tls.crt
+              subPath: tls.crt
+              defaultMode: 256
+              readOnly: true
+            - name: admin-certs
+              mountPath: /usr/share/wazuh-indexer/certs/admin/tls.key
+              subPath: tls.key
+              defaultMode: 256
+              readOnly: true
+            - name: admin-certs
+              mountPath: /usr/share/wazuh-indexer/certs/admin/ca.crt
+              subPath: ca.crt
+              defaultMode: 292
+              readOnly: true
+            - name: indexer-conf
+              mountPath: /usr/share/wazuh-indexer/opensearch.yml
+              subPath: opensearch.yaml
+              readOnly: true
+            - name: indexer-conf
+              mountPath: /usr/share/wazuh-indexer/opensearch-security/internal_users.yml.template
+              subPath: internal_users.yaml
+              readOnly: true
+          ports:
+            - containerPort: 9200
+              name: indexer-rest
+            - containerPort: 9300
+              name: indexer-nodes
+  volumeClaimTemplates:
+    - metadata:
+        name: wazuh-indexer
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ .Values.storage_class }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size.indexer | quote }}

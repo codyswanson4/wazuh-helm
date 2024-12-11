@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: indexerConf
+data:
+
+{{ range $path, $_ :=  .Files.Glob  "configmap/indexer/*.yaml" }}
+      {{ $.Files.Get $path }}
+{{ end }}

@@ -1,0 +1,37 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigning-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wazuh-pki-ca
+spec:
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: selfsigning-issuer
+  secretName: wazuh-pki-ca
+  commonName: "wazuh-ca"
+  subject:
+    organizations:
+      - {{ .Values.ca.organization }}
+  usages:
+    - "signing"
+    - "key encipherment"
+    - "cert sign"
+  duration: {{ .Values.ca.duration }}
+  renewBefore: 168h # 365d
+  isCA: true
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: wazuh-issuer
+spec:
+  ca:
+    secretName: "wazuh-pki-ca"

@@ -1,0 +1,51 @@
+dashboard:
+  dns: "wazuh.internal"
+  version: "4.9.1"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+annotations:
+  dashboard_svc:
+  manager_svc:
+  worker_svc:
+
+ca:
+  organization: "internal"
+  duration: "3650d"
+
+versions:
+  manager: "4.9.1"
+
+storage:
+  class: "STANDARD"
+  size:
+    managerWorker: "25Gi"
+    indexer: "10Gi"
+
+indexer:
+  dns: "wazuh.internal"
+  resources:
+    limits:
+      cpu: 4
+      memory: "5Gi"
+  imagePullPolicy: Always
+  javaOpts: "-Xms4g -Xmx4g -Dlog4j2.formatMsgNoLookups=true"
+  version: "4.9.1"
+
+secrets:
+  indexer:
+    username: "admin"
+    password: ""
+  dashboard: # REQUIRED
+    username: "kibanaserver"
+    password: ""
+  api_cred:
+    username: "wazuh-wui"
+    password: ""
+  authd: ""
+  cluster_key: ""
+
+ossec:
+  allowedIps: 10.0.0.0/8

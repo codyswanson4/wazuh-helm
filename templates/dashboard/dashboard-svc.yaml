@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  labels:
+    app: wazuh-dashboard
+  annotations:
+    {{ .Values.annotations.dashboard_svc }}
+spec:
+  type: LoadBalancer
+  selector:
+    app: wazuh-dashboard
+  ports:
+    - name: dashboard
+      port: 443
+      targetPort: 5601
