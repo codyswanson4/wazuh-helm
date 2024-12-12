@@ -9,4 +9,4 @@ appVersion: "4.9.1"
 dependencies:
   - name: cert-manager
     version: "1.16.2"
-    repository: jetstack/cert-manager
+    repository: "https://charts.jetstack.io"
